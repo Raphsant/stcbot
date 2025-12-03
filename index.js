@@ -15,6 +15,7 @@ app.post('/webhooks/cf-membership-cancelled', async (req, res) => {
   //WE FETCH THE USER USING THE ID FROM CF
   const userData = await getUserById(userId);
 
+  console.log(userData);
 
   res.sendStatus(200);
 });
