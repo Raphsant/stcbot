@@ -1,6 +1,7 @@
 {
   "name": "stcbot",
   "packageManager": "yarn@4.9.1",
+  "type": "module",
   "dependencies": {
     "express": "^5.2.1"
   }
