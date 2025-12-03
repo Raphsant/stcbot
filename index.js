@@ -7,10 +7,11 @@ app.use(express.json());
 
 // ---- CF WEBHOOK ----
 app.post('/webhooks/cf-membership-cancelled', async (req, res) => {
-  console.log(req.body);
+  // console.log(req.body);
 
   //WE GET THE USER ID FROM CF WEBHOOK
   const userId = req.body.data.attributes.id;
+  console.log(userId);
 
   //WE FETCH THE USER USING THE ID FROM CF
   const userData = await getUserById(userId);
@@ -38,7 +39,7 @@ const clientReady = new Promise((resolve) => {
   });
 });
 
-console.log('DISCORD_BOT_TOKEN:', process.env.DISCORD_BOT_TOKEN);
+// console.log('DISCORD_BOT_TOKEN:', process.env.DISCORD_BOT_TOKEN);
 client.login(process.env.DISCORD_BOT_TOKEN);
 
 // ---- TEST ROUTE ----
@@ -106,3 +107,6 @@ await test();
 app.post('/discord-access', async (req, res) => {
 
 })
+
+const data = await getUserOrders('928598043')
+console.log(data)
