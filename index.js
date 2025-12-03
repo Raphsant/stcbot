@@ -14,8 +14,10 @@ app.post('/webhooks/cf-membership-cancelled', async (req, res) => {
 
   //WE FETCH THE USER USING THE ID FROM CF
   const userData = await getUserById(userId);
+  const userOrders = await getUserOrders(userId);
 
   console.log(userData);
+  console.log(userOrders);
 
   res.sendStatus(200);
 });
@@ -82,6 +84,18 @@ async function getUserById(id) {
   return res.json()
 }
 
+
+async function getUserOrders(id) {
+  const res = await fetch(`https://eduardobricenosteam309bd.myclickfunnels.com/api/v2/workspaces/${process.env.WORKSPACE_ID}/orders?filter[contact_id]=${id}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${process.env.CF2_TOKEN}`,
+      'accept': 'application/json'
+    }
+  })
+  return res.json()
+}
+
 const test = async () => {
   const data = await getUserById('938642874')
   console.log(data.custom_attributes)
@@ -89,3 +103,6 @@ const test = async () => {
 
 await test();
 
+app.post('/discord-access', async (req, res) => {
+
+})
