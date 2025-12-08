@@ -45,7 +45,7 @@ app.post('/webhooks/discord-enroll', async (req, res) => {
     if (isThereAnActiveOrder) {
       console.log(userData.custom_attributes);
       //IF THERE IS AN ORDER WE UPDATE THE USER ATTRIBUTES
-      const discordId = await getDiscordIdByUsername(userData.custom_attributes.Userdiscord);
+      const discordId = await getDiscordIdByUsername(userData.custom_attributes.userdiscord);
       if(discordId === null) throw new Error('El usuario no tiene discord id o no fue encontrado')
       await updateUserAttributes(userId,discordId);
       //AND WE GIVE THE ROLE TO THE USER
