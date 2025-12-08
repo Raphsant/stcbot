@@ -10,8 +10,10 @@ app.post('/webhooks/cf-membership-cancelled', async (req, res) => {
   try{
     //WE GET THE USER ID FROM CF WEBHOOK
     const userId = req.body.data.attributes.id;
+    console.log(userId);
     //WE FETCH THE USER USING THE ID FROM CF
     const userData = await getUserById(userId);
+    console.log(userData);
     //WE CHECK THE ORDERS
     const userOrders = await getUserOrders(userId);
     //WE CHECK IF THE ORDER IS ACTIVE OR NOT
@@ -31,13 +33,17 @@ app.post('/webhooks/discord-enroll', async (req, res) => {
   try{
     //WE GET THE USER ID FROM CF WEBHOOK
     const userId = req.body.data.attributes.id;
+    console.log(userId);
     //WE FETCH THE USER USING THE ID FROM CF
     const userData = await getUserById(userId);
+    console.log(userData);
     //WE CHECK THE ORDERS
     const userOrders = await getUserOrders(userId);
+    console.log(userOrders);
     //WE CHECK IF THE ORDER IS ACTIVE OR NOT
     const isThereAnActiveOrder = userOrders.some(order => order.service_status === "active")
     if (isThereAnActiveOrder) {
+      console.log(userData.custom_attributes.Userdiscord);
       //IF THERE IS AN ORDER WE UPDATE THE USER ATTRIBUTES
       const discordId = await getDiscordIdByUsername(userData.custom_attributes.Userdiscord);
       if(discordId === null) throw new Error('El usuario no tiene discord id o no fue encontrado')
@@ -218,4 +224,6 @@ async function giveRole(userId, roleId) {
     return false;
   }
 }
+
+
 
