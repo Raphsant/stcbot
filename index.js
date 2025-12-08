@@ -43,7 +43,7 @@ app.post('/webhooks/discord-enroll', async (req, res) => {
     //WE CHECK IF THE ORDER IS ACTIVE OR NOT
     const isThereAnActiveOrder = userOrders.some(order => order.service_status === "active")
     if (isThereAnActiveOrder) {
-      console.log(userData.custom_attributes.Userdiscord);
+      console.log(userData.custom_attributes);
       //IF THERE IS AN ORDER WE UPDATE THE USER ATTRIBUTES
       const discordId = await getDiscordIdByUsername(userData.custom_attributes.Userdiscord);
       if(discordId === null) throw new Error('El usuario no tiene discord id o no fue encontrado')
