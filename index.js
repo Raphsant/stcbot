@@ -164,14 +164,20 @@ async function kick(id, reason = 'No reason provided') {
  */
 async function getDiscordIdByUsername(username) {
   try {
-    await clientReady; // Ensure the bot is ready
+    // 1. Standard check if client is ready
+    if (!client.isReady()) {
+      console.error("❌ Client is not ready yet.");
+      return null;
+    }
 
     const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID);
 
-    // Use query to search server-side (much more efficient for large guilds)
-    const members = await guild.members.fetch({query: username, limit: 10});
+    // 2. Fetch using query (Requires GUILD_MEMBERS intent)
+    // "limit: 1" is usually not enough because of partial matches, so 10 is good.
+    const members = await guild.members.fetch({ query: username, limit: 10 });
 
-    // Find exact match (query does a prefix search, so we need to filter)
+    // 3. Find exact match
+    // Note: This searches the unique username (e.g. "john_doe"), NOT the Display Name.
     const member = members.find(
       (m) => m.user.username.toLowerCase() === username.toLowerCase()
     );
@@ -181,8 +187,10 @@ async function getDiscordIdByUsername(username) {
       return null;
     }
 
-    console.log(`✅ Found user ${member.user.tag} with ID: ${member.id}`);
+    // .tag is deprecated, just use .username
+    console.log(`✅ Found user ${member.user.username} with ID: ${member.id}`);
     return member.id;
+
   } catch (err) {
     console.error(`❌ Failed to find user by username ${username}:`, err.message);
     return null;
