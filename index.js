@@ -32,6 +32,7 @@ app.post('/webhooks/cf-membership-cancelled', async (req, res) => {
 app.post('/webhooks/discord-enroll', async (req, res) => {
   try{
     //WE GET THE USER ID FROM CF WEBHOOK
+    console.log(req.body.data);
     const userId = req.body.data.attributes.id;
     console.log(userId);
     //WE FETCH THE USER USING THE ID FROM CF
