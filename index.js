@@ -10,10 +10,10 @@ app.post('/webhooks/cf-membership-cancelled', async (req, res) => {
   try{
     //WE GET THE USER ID FROM CF WEBHOOK
     const userId = req.body.data.attributes.id;
-    console.log(userId);
     //WE FETCH THE USER USING THE ID FROM CF
     const userData = await getUserById(userId);
-    console.log(userData);
+    const fullName = `${userData.first_name} ${userData.last_name}`
+    const email = userData.email;
     //WE CHECK THE ORDERS
     const userOrders = await getUserOrders(userId);
     //WE CHECK IF THE ORDER IS ACTIVE OR NOT
@@ -22,6 +22,7 @@ app.post('/webhooks/cf-membership-cancelled', async (req, res) => {
     if (isThereAnActiveOrder) return res.sendStatus(200);
     // IF THERE IS NO ACTIVE ORDER WE KICK THE USER
     else await kick(userData?.custom_attributes.discord_id, "Membresia cancelada");
+    console.log(`El usuario ${fullName} (${email}) ha sido eliminado del servidor`);
     res.sendStatus(200);
   }catch(err){
     console.log('Error en el webhook de CF de membership cancelled');
@@ -34,23 +35,22 @@ app.post('/webhooks/discord-enroll', async (req, res) => {
     //WE GET THE USER ID FROM CF WEBHOOK
     console.log(req.body.data);
     const userId = req.body.data.attributes.id;
-    console.log(userId);
     //WE FETCH THE USER USING THE ID FROM CF
     const userData = await getUserById(userId);
-    console.log(userData);
+    const fullName = `${userData.first_name} ${userData.last_name}`
+    const email = userData.email;
     //WE CHECK THE ORDERS
     const userOrders = await getUserOrders(userId);
-    console.log(userOrders);
     //WE CHECK IF THE ORDER IS ACTIVE OR NOT
     const isThereAnActiveOrder = userOrders.some(order => order.service_status === "active")
     if (isThereAnActiveOrder) {
-      console.log(userData.custom_attributes);
       //IF THERE IS AN ORDER WE UPDATE THE USER ATTRIBUTES
       const discordId = await getDiscordIdByUsername(userData.custom_attributes.userdiscord);
       if(discordId === null) throw new Error('El usuario no tiene discord id o no fue encontrado')
       await updateUserAttributes(userId,discordId);
       //AND WE GIVE THE ROLE TO THE USER
       await giveRole(discordId, process.env.ROLE_ID);
+      console.log(`El usuario ${fullName} (${email}) ha sido añadido en el servidor`);
       res.sendStatus(200);
     } else{
       console.log('no hay orden activa');
