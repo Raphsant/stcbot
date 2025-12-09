@@ -432,18 +432,3 @@ async function giveRole(userId, roleId) {
 }
 
 
-
-async function getChurnedOrders(){
-
-  const res = await fetch(`https://.myclickfunnels.com/api/v2/workspaces/${process.env.WORKSPACE_ID}/orders?filter[churned_at]=churned`, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${process.env.CF2_TOKEN}`,
-      'accept': 'application/json'
-    }
-  })
-  const data = await res.json();
-  console.log(data.length);
-}
-
-await getChurnedOrders();
