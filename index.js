@@ -150,7 +150,7 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.isButton()) {
-    console.log(interaction.customId);
+
     if (interaction.customId === 'openEnrollModal') {
       const modal = new ModalBuilder()
         .setCustomId('enrollmentModal')
