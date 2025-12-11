@@ -452,7 +452,7 @@ async function giveRole(userId, roleId) {
 
 function getESTTime() {
   return new Date().toLocaleString('en-US', {
-    timeZone: 'America/New_York',
+    timeZone: 'America/Chicago',
     hour12: false
   });
 }
