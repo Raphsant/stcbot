@@ -78,6 +78,25 @@ app.post('/webhooks/discord-enroll', async (req, res) => {
   }
 })
 
+app.get('/health', (req, res) => {
+  const discordStatus = client.isReady() ? 'Connected' : 'Disconnected';
+  const uptime = process.uptime();
+
+  // Return 200 if everything is fine, 503 if Discord isn't ready yet
+  if (client.isReady()) {
+    res.status(200).json({
+      status: 'UP',
+      discord: discordStatus,
+      uptime: uptime
+    });
+  } else {
+    res.status(503).json({
+      status: 'NOT READY',
+      discord: discordStatus
+    });
+  }
+});
+
 //----END OF ROUTES----
 
 // ---- DISCORD CLIENT ----
@@ -97,17 +116,17 @@ const commands = [
 
 // 1. Ready Event (Log in + Register Commands)
 client.once('ready', async () => {
-  console.log(`✅ Logged in as ${client.user.tag}`);
+  console.log(`[${getESTTime()}] - ✅ Logged in as ${client.user.tag}`);
 
   try {
-    console.log('Started refreshing application (/) commands.');
+    console.log(`[${getESTTime()}] - Started refreshing application (/) commands.`);
     // This registers the command globally. It might take an hour to update cache.
     // For instant updates in dev, use Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID) instead.
     await rest.put(
       Routes.applicationCommands(CLIENT_ID),
       {body: commands},
     );
-    console.log('✅ Successfully reloaded application (/) commands.');
+    console.log(`[${getESTTime()}] - ✅ Successfully reloaded application (/) commands.`);
   } catch (error) {
     console.error(error);
   }
@@ -190,7 +209,7 @@ client.on('interactionCreate', async interaction => {
           const roleSuccess = await giveRole(discordUser.id, process.env.ROLE_ID);
           if (roleSuccess) {
             await interaction.editReply(` **Excelente!** Te has verificado correctamente. Ahora puedes acceder a los canales del Grupo Delta. `)
-            console.log(`Usuario ${discordUser.tag} verificado manualmente con email ${email}`);
+            console.log(`[${getESTTime()}] - Usuario ${discordUser.tag} verificado manualmente con email ${email}`);
           } else {
             await interaction.editReply(`subscripcion activa, pero hubo un error al darte el rol. Contacta a soporte.`)
           }
@@ -232,7 +251,7 @@ client.on('interactionCreate', async interaction => {
 
         if (roleSuccess) {
           await interaction.editReply(`✅ **¡Éxito!** He verificado tu membresía. Tu cuenta de Discord ha sido vinculada y se te ha asignado el rol.`);
-          console.log(`Usuario ${discordUser.tag} verificado manualmente con email ${email}`);
+          console.log(`[${getESTTime()}] - Usuario ${discordUser.tag} verificado manualmente con email ${email}`);
         } else {
           await interaction.editReply(`⚠️ Tu orden está activa, pero hubo un error al darte el rol. Contacta a soporte.`);
         }
@@ -242,7 +261,7 @@ client.on('interactionCreate', async interaction => {
       }
 
     } catch (error) {
-      console.error(error);
+      console.error(getESTTime() + error);
       await interaction.editReply(`❌ Ocurrió un error interno al procesar tu solicitud.`);
     }
   }
@@ -281,7 +300,7 @@ async function getUserById(id) {
     }
   })
   // console.log(await res.json());
-  if (!res.ok) throw new Error(`Failed to fetch user with ID ${id}`)
+  if (!res.ok) throw new Error(`[${getESTTime()}] - Failed to fetch user with ID ${id}`)
   return res.json()
 }
 
@@ -300,7 +319,7 @@ async function getUserByEmail(email) {
   });
 
   if (!res.ok) {
-    throw new Error(`Failed to search user by email ${email}`);
+    throw new Error(`[${getESTTime()}] - Failed to search user by email ${email}`);
   }
 
   const data = await res.json();
@@ -320,7 +339,7 @@ async function getUserOrders(id) {
       'accept': 'application/json'
     }
   })
-  if (!res.ok) throw new Error(`Failed to fetch orders for user with ID ${id}`)
+  if (!res.ok) throw new Error(`[${getESTTime()}] - Failed to fetch orders for user with ID ${id}`)
   return res.json()
 }
 
@@ -354,17 +373,17 @@ async function updateUserAttributes(id, discord_id) {
  */
 async function kick(id, reason = 'No reason provided') {
   try {
-    if (!id) throw new Error('El Usuario no tiene ID en ClickFunnels');
+    if (!id) throw new Error(`[${getESTTime()}] - El Usuario no tiene ID en ClickFunnels`);
     await clientReady; // Ensure the bot is ready
 
     const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID);
     const member = await guild.members.fetch(id);
 
     await member.kick(reason);
-    console.log(`✅ Successfully kicked user ${member.user.tag} (${id})`);
+    console.log(`[${getESTTime()}] - ✅ Successfully kicked user ${member.user.tag} (${id})`);
     return true;
   } catch (err) {
-    console.error(`❌ Failed to kick user ${id}:`, err.message);
+    console.error(`[${getESTTime()}] - ❌ Failed to kick user ${id}:`, err.message);
     return false;
   }
 }
@@ -395,16 +414,16 @@ async function getDiscordIdByUsername(username) {
     );
 
     if (!member) {
-      console.log(`❌ No user found with username: ${username}`);
+      console.log(`[${getESTTime()}] - ❌ No user found with username: ${username}`);
       return null;
     }
 
     // .tag is deprecated, just use .username
-    console.log(`✅ Found user ${member.user.username} with ID: ${member.id}`);
+    console.log(`[${getESTTime()}] - ✅ Found user ${member.user.username} with ID: ${member.id}`);
     return member.id;
 
   } catch (err) {
-    console.error(`❌ Failed to find user by username ${username}:`, err.message);
+    console.error(`[${getESTTime()}] - ❌ Failed to find user by username ${username}:`, err.message);
     return null;
   }
 }
@@ -423,12 +442,22 @@ async function giveRole(userId, roleId) {
     const member = await guild.members.fetch(userId);
 
     await member.roles.add(roleId);
-    console.log(`✅ Successfully gave role ${roleId} to user ${member.user.tag} (${userId})`);
+    console.log(`[${getESTTime()}] - ✅ Successfully gave role ${roleId} to user ${member.user.tag} (${userId})`);
     return true;
   } catch (err) {
-    console.error(`❌ Failed to give role ${roleId} to user ${userId}:`, err.message);
+    console.error(`[${getESTTime()}] - ❌ Failed to give role ${roleId} to user ${userId}:`, err.message);
     return false;
   }
 }
+
+function getESTTime() {
+  return new Date().toLocaleString('en-US', {
+    timeZone: 'America/New_York',
+    hour12: false
+  });
+}
+
+
+
 
 
