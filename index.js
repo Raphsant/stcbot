@@ -10,9 +10,12 @@ import {
   TextInputStyle,
   ActionRowBuilder,
   ButtonBuilder,    // <--- NEW
-  ButtonStyle, LabelBuilder, EmbedBuilder
+  ButtonStyle,
+  LabelBuilder,
+  EmbedBuilder
 } from 'discord.js';
 import 'dotenv/config';
+
 
 const app = express();
 app.use(express.json());
@@ -85,14 +88,11 @@ app.get('/health', (req, res) => {
   // Return 200 if everything is fine, 503 if Discord isn't ready yet
   if (client.isReady()) {
     res.status(200).json({
-      status: 'UP',
-      discord: discordStatus,
-      uptime: uptime
+      status: 'UP', discord: discordStatus, uptime: uptime
     });
   } else {
     res.status(503).json({
-      status: 'NOT READY',
-      discord: discordStatus
+      status: 'NOT READY', discord: discordStatus
     });
   }
 });
@@ -101,18 +101,14 @@ app.get('/health', (req, res) => {
 
 // ---- DISCORD CLIENT ----
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers, // needed to fetch & kick members
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, // needed to fetch & kick members
   ],
 });
 
 // ---- SLASH COMMAND REGISTRATION ----
-const commands = [
-  new SlashCommandBuilder()
-    .setName('setup-enroll')
-    .setDescription('ADMIN ONLY: Posts the enrollment button in this channel')
-];
+const commands = [new SlashCommandBuilder()
+  .setName('setup-enroll')
+  .setDescription('ADMIN ONLY: Posts the enrollment button in this channel')];
 
 // 1. Ready Event (Log in + Register Commands)
 client.once('ready', async () => {
@@ -122,10 +118,7 @@ client.once('ready', async () => {
     console.log(`[${getESTTime()}] - Started refreshing application (/) commands.`);
     // This registers the command globally. It might take an hour to update cache.
     // For instant updates in dev, use Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID) instead.
-    await rest.put(
-      Routes.applicationCommands(CLIENT_ID),
-      {body: commands},
-    );
+    await rest.put(Routes.applicationCommands(CLIENT_ID), {body: commands},);
     console.log(`[${getESTTime()}] - ✅ Successfully reloaded application (/) commands.`);
   } catch (error) {
     console.error(error);
@@ -137,7 +130,7 @@ client.on('interactionCreate', async interaction => {
   // if (!interaction.isChatInputCommand()) return;
 
   if (interaction.commandName === 'setup-enroll') {
-    if (!interaction.member.permissions.has('714214136506220625')) {
+    if (!interaction.member.roles.cache.has('714214136506220625')) {
       return interaction.reply({content: 'No tienes permisos para usar este comando', ephemeral: true});
     }
     const button = new ButtonBuilder()
@@ -151,24 +144,26 @@ client.on('interactionCreate', async interaction => {
     const embed = new EmbedBuilder()
       .setColor('#ea9d13')
       .setTitle('Ingresa al Grupo Delta')
-      .setDescription(
-        `
+      .setDescription(`
         Bienvenido a Stocks Trading Club.
         Para acceder al contenido exclusivo del Grupo Delta, necesitamos verificar tu subscripcion.
          
        **¿Como funciona?**
       1. Haz Click en el boton de abajo.\n2. Ingresa tu email que usaste para realizar el pago.  
-        `
-      )
+        `)
       .setFooter({text: 'Sistema de verificacion de Stocks Trading Club'})
 
     await interaction.reply({
-      embeds: [embed],
-      components: [row]
+      embeds: [embed], components: [row]
     })
   }
 
   if (interaction.isButton()) {
+    if (interaction.member.roles.cache.has(process.env.ROLE_ID)) {
+      await interaction.deferReply({ephemeral: true});
+      await interaction.editReply(`Ya estas registrado en el servidor.`)
+      return
+    }
 
     if (interaction.customId === 'openEnrollModal') {
       const modal = new ModalBuilder()
@@ -204,6 +199,16 @@ client.on('interactionCreate', async interaction => {
         //ordenes
         const userOrders = await getUserOrders(userData.id);
         const isActive = userOrders.some(order => order.service_status === 'active')
+        const checkIfUserExistsInDiscord = await checkIfUserIsRegistered(email);
+        if (checkIfUserExistsInDiscord && checkIfUserExistsInDiscord !== discordUser.id) {
+          const existingUser = await interaction.client.users.fetch(checkIfUserExistsInDiscord)
+          const targetChannel = await interaction.client.channels.fetch('1448045733642113197');
+          await targetChannel.send(`El usuario @${discordUser.tag} intentó registrarse con el email ${email} pero ese email ya esta registrado en el servidor con el usuario @${existingUser.username}.`)
+
+          // await adminUser.send(`El usuario ${discordUser.tag} intentó registrarse con el email ${email} pero ese email ya esta registrado en el servidor con el usuario ${existingUser.username}.`)
+          await interaction.editReply(`ALERTA - Contacta con un admin para que te registres en el servidor.`)
+          return
+        }
         if (isActive) {
           await updateUserAttributes(userData.id, discordUser.id);
           const roleSuccess = await giveRole(discordUser.id, process.env.ROLE_ID);
@@ -220,49 +225,6 @@ client.on('interactionCreate', async interaction => {
         console.log(e)
         await interaction.editReply(`Ocurrio un error interno.`)
       }
-    }
-  }
-
-
-  if (interaction.commandName === 'delta') {
-    await interaction.deferReply({ephemeral: true}); // Only user sees the reply
-
-    const email = interaction.options.getString('email');
-    const discordUser = interaction.user;
-
-    try {
-      // 1. Find user in CF by Email
-      const userData = await getUserByEmail(email);
-
-      if (!userData) {
-        return interaction.editReply(`❌ No pude encontrar una subscripcion activa con el email: ${email}`);
-      }
-
-      // 2. Check for Active Orders
-      const userOrders = await getUserOrders(userData.id);
-      const isThereAnActiveOrder = userOrders.some(order => order.service_status === "active");
-
-      if (isThereAnActiveOrder) {
-        // 3. Link Discord ID to CF Account
-        await updateUserAttributes(userData.id, discordUser.id);
-
-        // 4. Give Role
-        const roleSuccess = await giveRole(discordUser.id, process.env.ROLE_ID);
-
-        if (roleSuccess) {
-          await interaction.editReply(`✅ **¡Éxito!** He verificado tu membresía. Tu cuenta de Discord ha sido vinculada y se te ha asignado el rol.`);
-          console.log(`[${getESTTime()}] - Usuario ${discordUser.tag} verificado manualmente con email ${email}`);
-        } else {
-          await interaction.editReply(`⚠️ Tu orden está activa, pero hubo un error al darte el rol. Contacta a soporte.`);
-        }
-
-      } else {
-        await interaction.editReply(`❌ Encontré tu usuario, pero no tienes ninguna orden activa (pagada).`);
-      }
-
-    } catch (error) {
-      console.error(getESTTime() + error);
-      await interaction.editReply(`❌ Ocurrió un error interno al procesar tu solicitud.`);
     }
   }
 });
@@ -286,17 +248,13 @@ client.login(process.env.DISCORD_BOT_TOKEN);
 // ---- EXPRESS SERVER ----
 app.listen(3000, () => console.log('Server running on port 3000'));
 
-//https://eduardobricenosteam309bd.myclickfunnels.com/account/workspaces/JEMRor
-
 
 //--------CF FUNCTIONS----------
 
 async function getUserById(id) {
   const res = await fetch(`https://eduardobricenosteam309bd.myclickfunnels.com/api/v2/contacts/${id}`, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${process.env.CF2_TOKEN}`,
-      'accept': 'application/json'
+    method: 'GET', headers: {
+      'Authorization': `Bearer ${process.env.CF2_TOKEN}`, 'accept': 'application/json'
     }
   })
   // console.log(await res.json());
@@ -311,10 +269,8 @@ async function getUserByEmail(email) {
   const url = `https://eduardobricenosteam309bd.myclickfunnels.com/api/v2/workspaces/${process.env.WORKSPACE_ID}/contacts?filter[email_address]=${encodeURIComponent(email)}`;
 
   const res = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${process.env.CF2_TOKEN}`,
-      'accept': 'application/json'
+    method: 'GET', headers: {
+      'Authorization': `Bearer ${process.env.CF2_TOKEN}`, 'accept': 'application/json'
     }
   });
 
@@ -333,10 +289,8 @@ async function getUserByEmail(email) {
 
 async function getUserOrders(id) {
   const res = await fetch(`https://eduardobricenosteam309bd.myclickfunnels.com/api/v2/workspaces/${process.env.WORKSPACE_ID}/orders?filter[contact_id]=${id}&filter[service_status]=active`, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${process.env.CF2_TOKEN}`,
-      'accept': 'application/json'
+    method: 'GET', headers: {
+      'Authorization': `Bearer ${process.env.CF2_TOKEN}`, 'accept': 'application/json'
     }
   })
   if (!res.ok) throw new Error(`[${getESTTime()}] - Failed to fetch orders for user with ID ${id}`)
@@ -346,13 +300,11 @@ async function getUserOrders(id) {
 async function updateUserAttributes(id, discord_id) {
   try {
     const res = await fetch(`https://eduardobricenosteam309bd.myclickfunnels.com/api/v2/contacts/${id}`, {
-      method: 'PUT',
-      headers: {
+      method: 'PUT', headers: {
         'Authorization': `Bearer ${process.env.CF2_TOKEN}`,
         'accept': 'application/json',
         'content-type': 'application/json'
-      },
-      body: JSON.stringify({contact: {custom_attributes: {discord_id: discord_id}}})
+      }, body: JSON.stringify({contact: {custom_attributes: {discord_id: discord_id}}})
 
 
     })
@@ -409,9 +361,7 @@ async function getDiscordIdByUsername(username) {
 
     // 3. Find exact match
     // Note: This searches the unique username (e.g. "john_doe"), NOT the Display Name.
-    const member = members.find(
-      (m) => m.user.username.toLowerCase() === username.toLowerCase()
-    );
+    const member = members.find((m) => m.user.username.toLowerCase() === username.toLowerCase());
 
     if (!member) {
       console.log(`[${getESTTime()}] - ❌ No user found with username: ${username}`);
@@ -452,9 +402,36 @@ async function giveRole(userId, roleId) {
 
 function getESTTime() {
   return new Date().toLocaleString('en-US', {
-    timeZone: 'America/Chicago',
-    hour12: false
+    timeZone: 'America/Chicago', hour12: false
   });
+}
+
+/*
+@param {string} email
+@returns{Promise<boolean>}
+ */
+
+async function checkIfUserIsRegistered(email) {
+  try {
+    const res = await fetch(`https://eduardobricenosteam309bd.myclickfunnels.com/api/v2/workspaces/${process.env.WORKSPACE_ID}/contacts?filter[email_address]=${encodeURIComponent(email)}`, {
+      method: 'GET', headers: {
+        'Authorization': `Bearer ${process.env.CF2_TOKEN}`, 'accept': 'application/json'
+      }
+    })
+
+    const userData = await res.json()
+    // console.log(userData[0])
+    // console.log(userData[0].custom_attributes.discord_id);
+    if (!userData[0].custom_attributes.discord_id) {
+      return false
+    } else {
+      return userData[0].custom_attributes.discord_id;
+    }
+
+
+  } catch (err) {
+
+  }
 }
 
 
