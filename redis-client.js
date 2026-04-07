@@ -72,12 +72,12 @@ export async function saveMessageMap(messageId, meetingId, channelId){
     channelId,
     messageId
   })
-  const redisKey = "message_map_zoom_test"
+  const redisKey = "message_map_zoom_test1"
   await client.rPush(redisKey, mapEntry)
 }
 
 export async function getMessageMap(){
-  const redisKey = "message_map_zoom_test"
+  const redisKey = "message_map_zoom_test1"
   const message_map = await client.lRange(redisKey,0,-1)
   return message_map.map(j => JSON.parse(j))
 }
