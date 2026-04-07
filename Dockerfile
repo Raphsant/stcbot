@@ -18,3 +18,6 @@ EXPOSE 3000
 
 # Start the bot
 CMD ["node", "index.js"]
+
+
+docker run cloudflare/cloudflared:latest tunnel --no-autoupdate run --token eyJhIjoiZGM5N2MxYzc4MzlhZDY4MjU5NGU3Yzg1YjMxMDA2YjIiLCJ0IjoiOWIyYzRmMTUtY2VlNC00NzQwLWFlMzgtM2UxZjUwMzg0Y2VkIiwicyI6Ik5UQmtPV0U1TkRVdE1tUTJNQzAwTVRJd0xXRmlOemd0WTJFM016UmpZalEwTlRKaiJ9
