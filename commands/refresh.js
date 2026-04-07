@@ -20,9 +20,10 @@ export async function execute(interaction, {getMeetingDetails}){
 
   try{
     const guild = await interaction.client.guilds.fetch('512330980011278336')
-    const channel = await guild.channels.fetch("1448045733642113197")
+
     const messageMap = await getMessageMap()
     for(const message of messageMap){
+      const channel = await guild.channels.fetch(message.channelId)
       const targetMessage = await channel.messages.fetch(message.messageId)
       const meeting = await getMeetingDetails(message.meetingId);
       const timeString = `<t:${meeting.timestamp}:F>\n🕒 **Inicia:** <t:${meeting.timestamp}:R>`;

@@ -66,9 +66,10 @@ export async function getDailyJoins(dateKey) {
   return joins.map(j => JSON.parse(j));
 }
 
-export async function saveMessageMap(messageId, meetingId){
+export async function saveMessageMap(messageId, meetingId, channelId){
   const mapEntry = JSON.stringify({
     meetingId,
+    channelId,
     messageId
   })
   const redisKey = "message_map_zoom_test"

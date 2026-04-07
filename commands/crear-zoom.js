@@ -50,7 +50,7 @@ export async function execute(interaction, helpers) {
       files: [logo]
     });
 
-    await saveMessageMap(message.id, meetingId)
+    await saveMessageMap(message.id, meetingId, message.channelId);
 
   } catch (err) {
     console.error(err);
