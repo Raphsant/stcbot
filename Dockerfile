@@ -15,6 +15,7 @@ COPY . .
 
 # Expose the port (internal use only)
 EXPOSE 3000
+EXPOSE 6379
 
 # Start the bot
 CMD ["node", "index.js"]
