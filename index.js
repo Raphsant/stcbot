@@ -523,7 +523,7 @@ async function sendLogToDb(meetingInfo, member, user) {
     }
   }
   console.log(body);
-  const res = await fetch('http://localhost:29050/api/logs/meeting', {
+  const res = await fetch('http://front-end:29050/api/logs/meeting', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
