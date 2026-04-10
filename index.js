@@ -113,6 +113,20 @@ app.post('/webhooks/discord-enroll', async (req, res) => {
   }
 });
 
+app.get('/webhooks/discord-info', async (req,res) => {
+  try{
+    const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID)
+    const data = {
+      guildName: guild.name,
+      memberCount: guild.memberCount
+    }
+    res.status(200).json(data)
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({error: e.message});
+  }
+})
+
 // ---- DISCORD INTERACTION HANDLER ----
 
 client.on('interactionCreate', async interaction => {
@@ -126,10 +140,12 @@ client.on('interactionCreate', async interaction => {
   // 2. Buttons (Handles Metadata for /crear-zoom)
   if (interaction.isButton()) {
     if (interaction.replied || interaction.deferred) return;
-    const [buttonId, metadata] = interaction.customId.split(':');
+    const parts = interaction.customId.split(':');
+    const buttonId = parts[0];
+    const metadata = parts.slice(1).join(':'); 
     const button = client.buttons.get(buttonId);
     if (button) {
-      await button.execute(interaction, {createRegistrant, metadata}).catch(console.error);
+      await button.execute(interaction, {createRegistrant, metadata, sendLogToDb, getMeetingDetails}).catch(console.error);
     }
   }
 
@@ -141,13 +157,21 @@ client.on('interactionCreate', async interaction => {
       await handleEnrollmentModal(interaction);
     }
     if (interaction.customId === 'createZoomModal') {
-
+      await interaction.deferReply();
       const nombre = interaction.fields.getTextInputValue('zoomName');
       const horario = interaction.fields.getTextInputValue('zoomTime');
       const meetingId = interaction.fields.getTextInputValue('zoomId').replace(/\s/g, ''); // Remove spaces
 
+      let timestamp = "";
+      try {
+        const meeting = await getMeetingDetails(meetingId);
+        timestamp = meeting.timestamp;
+      } catch (e) {
+        console.warn(`Could not fetch meeting details for modal: ${e.message}`);
+      }
+
       const button = new ButtonBuilder()
-        .setCustomId(`zoomRegister:${meetingId}`)
+        .setCustomId(`zoomRegister:${meetingId}:${timestamp}`)
         .setLabel('Registrarse ahora')
         .setStyle(ButtonStyle.Success)
         .setEmoji("📹");
@@ -163,7 +187,7 @@ client.on('interactionCreate', async interaction => {
         .setFooter({text: 'STC Dynamic Zoom System'});
 
       // Enviar el mensaje al canal donde se usó el comando
-      await interaction.reply({
+      await interaction.editReply({
         embeds: [embed],
         components: [new ActionRowBuilder().addComponents(button)]
       });
@@ -484,46 +508,31 @@ client.once('ready', async () => {
 });
 
 client.login(process.env.DISCORD_BOT_TOKEN);
-app.listen(3000, () => console.log('Server running on port 3000'));
+app.listen(3001, () => console.log('Server running on port 3000'));
 
 
-// async function updateEmbed() {
-//   try {
-//     const guild = await client.guilds.fetch('512330980011278336')
-//     const channel = await guild.channels.fetch("1448045733642113197")
-//     const targetMessage = await channel.messages.fetch("1491124371069206559")
-//
-//     const token = await getZoomAccessToken();
-//     const meeting = await getMeetingDetails(token, "82716618243");
-//     const timeString = `<t:${meeting.timestamp}:F>\n🕒 **Inicia:** <t:${meeting.timestamp}:R>`;
-//
-//     const button = new ButtonBuilder()
-//       .setCustomId(`zoomRegister:${meeting.id}`)
-//       .setLabel('Obtener Enlace de Acceso')
-//       .setStyle(ButtonStyle.Success)
-//       .setEmoji("📹");
-//
-//     const embed = new EmbedBuilder()
-//       .setColor('#2D8CFF')
-//       .setTitle(`📍 ${meeting.topic}`)
-//       .addFields(
-//         {name: '📅 Horario Local', value: timeString, inline: false},
-//       )
-//       .setDescription(`Esta sesión está programada en Zoom. Haz clic abajo para registrarte y obtener tu enlace único.`)
-//       .setThumbnail('https://img.icons8.com/color/512/zoom.png') // Adds a nice Zoom logo
-//       .setFooter({text: 'Sincronizado automáticamente con Zoom API'});
-//
-//     await targetMessage.edit({embeds: [embed], components: [new ActionRowBuilder().addComponents(button)]})
-//
-//
-//   } catch (e) {
-//     console.error(e)
-//   }
-// }
+async function sendLogToDb(meetingInfo, member, user) {
+  const body = {
+    meetingId: meetingInfo.meetingId,
+    startTime: meetingInfo.timestamp,
+    name: meetingInfo.name,
+    discordUser: {
+      id: user.id,
+      username: member.displayName,
+      roles: member.roles.cache.map(r => r.name),
+    }
+  }
+  console.log(body);
+  const res = await fetch('http://localhost:3000/api/logs/meeting', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  })
+  console.log(res);
 
-async function test(){
-  const data = await getMessageMap();
-  console.log(data)
+
 }
 
-await test()
+

@@ -29,7 +29,7 @@ export async function execute(interaction, {getMeetingDetails}){
       const timeString = `<t:${meeting.timestamp}:F>\n🕒 **Inicia:** <t:${meeting.timestamp}:R>`;
       const logo = new AttachmentBuilder('./img/stclogo.jpeg');
       const button = new ButtonBuilder()
-        .setCustomId(`zoomRegister:${meeting.id}`)
+        .setCustomId(`zoomRegister:${meeting.id}:${meeting.timestamp}`)
         .setLabel('Obtener Enlace de Acceso')
         .setStyle(ButtonStyle.Success)
         .setEmoji("📹");
