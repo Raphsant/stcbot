@@ -10,6 +10,8 @@ import {
   EmbedBuilder, ButtonStyle, ButtonBuilder
 } from 'discord.js';
 
+import cors from 'cors';
+
 // Redis Client & Token Helpers
 import {client as redis, getCachedZoomToken, getDailyJoins, saveMessageMap, getMessageMap} from "./redis-client.js";
 
@@ -18,7 +20,7 @@ import * as zoomRegisterBtn from './buttons/zoomRegister.js';
 import * as openEnrollModalBtn from './buttons/openEnrollModal.js';
 
 const app = express();
-const cors = require('cors')
+
 app.use(express.json());
 
 app.use(cors({
