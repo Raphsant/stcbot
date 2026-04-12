@@ -530,7 +530,7 @@ async function sendLogToDb(meetingInfo, member, user) {
     }
   }
   console.log(body);
-  const res = await fetch('x', {
+  const res = await fetch('https://stc-front.netlify.app/api/logs/meeting', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
