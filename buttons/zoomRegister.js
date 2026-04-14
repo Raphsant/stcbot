@@ -1,4 +1,5 @@
 import {trackJoin} from "../redis-client.js";
+import {time} from "discord.js";
 
 export async function execute(interaction, helpers) {
   await interaction.deferReply({ephemeral: true});
@@ -12,14 +13,18 @@ export async function execute(interaction, helpers) {
 
     const now = Math.floor(Date.now() / 1000);
     const twoHoursInSeconds = 2 * 60 * 60;
-    if (data.timestamp - now > twoHoursInSeconds) {
+    if (timestamp - now > twoHoursInSeconds) {
       return interaction.editReply('⏳ La reunión no comenzará pronto. Por favor, regresa más tarde cuando la sesión esté a punto de iniciar.');
     }
 
     const joinUrl = await helpers.createRegistrant(interaction.member.displayName, interaction.user.id, meetingId);
+
+    // Use the timestamp from the button metadata for logging so that late users
+    // are recorded against the occurrence they actually attended, not the next one.
+    const logTimestamp = timestamp ? parseInt(timestamp, 10) : data.timestamp;
     const meeting = {
       meetingId: data.id,
-      timestamp: data.timestamp,
+      timestamp: logTimestamp,
       name: data.topic,
     }
 
