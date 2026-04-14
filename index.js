@@ -543,29 +543,3 @@ async function sendLogToDb(meetingInfo, member, user) {
 }
 
 
-async function getAllUsers(){
-  try{
-    const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID)
-    const members = await guild.members.fetch();
-    const membersJSON = members.map(m => ({
-      id: m.id,
-      username: m.displayName,
-      roles: m.roles.cache.map(r => r.name),
-    }));
-    const res = await fetch('http://localhost:3000/api/discord-users/mass-create', {
-      method: 'POST',
-      body: JSON.stringify(membersJSON),
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    })
-    console.log(membersJSON);
-    console.log(res);
-
-
-  }catch (e) {
-    console.error(e);
-  }
-}
-
-await getAllUsers();
