@@ -15,9 +15,15 @@ import cors from 'cors';
 // Redis Client & Token Helpers
 import {client as redis, getCachedZoomToken, getDailyJoins, saveMessageMap, getMessageMap} from "./redis-client.js";
 
+// MongoDB
+import {connectToMongo} from "./mongo-client.js";
+
+await connectToMongo();
+
 // Manual Button Imports (We keep these explicit for now)
 import * as zoomRegisterBtn from './buttons/zoomRegister.js';
 import * as openEnrollModalBtn from './buttons/openEnrollModal.js';
+import {DiscordUser} from "./models/DiscordUser.js";
 
 const app = express();
 
@@ -120,8 +126,8 @@ app.post('/webhooks/discord-enroll', async (req, res) => {
   }
 });
 
-app.get('/webhooks/discord-info', async (req,res) => {
-  try{
+app.get('/webhooks/discord-info', async (req, res) => {
+  try {
     const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID)
     const data = {
       guildName: guild.name,
@@ -149,10 +155,15 @@ client.on('interactionCreate', async interaction => {
     if (interaction.replied || interaction.deferred) return;
     const parts = interaction.customId.split(':');
     const buttonId = parts[0];
-    const metadata = parts.slice(1).join(':'); 
+    const metadata = parts.slice(1).join(':');
     const button = client.buttons.get(buttonId);
     if (button) {
-      await button.execute(interaction, {createRegistrant, metadata, sendLogToDb, getMeetingDetails}).catch(console.error);
+      await button.execute(interaction, {
+        createRegistrant,
+        metadata,
+        sendLogToDb,
+        getMeetingDetails
+      }).catch(console.error);
     }
   }
 
@@ -519,27 +530,36 @@ app.listen(3001, () => console.log('Server running on port 3000'));
 
 
 async function sendLogToDb(meetingInfo, member, user) {
-  const body = {
-    meetingId: meetingInfo.meetingId,
-    startTime: meetingInfo.timestamp,
-    name: meetingInfo.name,
-    discordUser: {
-      id: user.id,
-      username: member.displayName,
-      roles: member.roles.cache.map(r => r.name),
+  try {
+    const body = {
+      meetingId: meetingInfo.meetingId,
+      startTime: meetingInfo.timestamp,
+      name: meetingInfo.name,
+      discordUser: {
+        id: user.id,
+        username: member.displayName,
+        roles: member.roles.cache.map(r => r.name),
+      }
     }
+
+    const res = await fetch('https://stc-front.netlify.app/api/logs/meeting', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    })
+  } catch (e) {
+    console.error(e);
   }
-  console.log(body);
-  const res = await fetch('https://stc-front.netlify.app/api/logs/meeting', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body)
-  })
-  console.log(res);
-
-
 }
 
+
+client.on('messageCreate', message => {
+  if (message.author.bot) return;
+  //this is fire and forget, let's not await it just to improve speed.
+  DiscordUser.updateOne({
+    _id: message.author.id,
+  }, {$inc: {messageCount: 1}}).catch(console.error);
+})
 

@@ -12,10 +12,10 @@ export async function execute(interaction, helpers) {
     const data = await helpers.getMeetingDetails(meetingId);
 
     const now = Math.floor(Date.now() / 1000);
-    const twoHoursInSeconds = 2 * 60 * 60;
-    if (timestamp - now > twoHoursInSeconds) {
-      return interaction.editReply('⏳ La reunión no comenzará pronto. Por favor, regresa más tarde cuando la sesión esté a punto de iniciar.');
-    }
+    // const twoHoursInSeconds = 2 * 60 * 60;
+    // if (timestamp - now > twoHoursInSeconds) {
+    //   return interaction.editReply('⏳ La reunión no comenzará pronto. Por favor, regresa más tarde cuando la sesión esté a punto de iniciar.');
+    // }
 
     const joinUrl = await helpers.createRegistrant(interaction.member.displayName, interaction.user.id, meetingId);
 
