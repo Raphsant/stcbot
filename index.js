@@ -24,6 +24,7 @@ await connectToMongo();
 import * as zoomRegisterBtn from './buttons/zoomRegister.js';
 import * as openEnrollModalBtn from './buttons/openEnrollModal.js';
 import {DiscordUser} from "./models/DiscordUser.js";
+import {MessageActivity} from "./models/MessageActivity.js";
 
 const app = express();
 
@@ -35,7 +36,7 @@ app.use(cors({
 
 // ---- DISCORD CLIENT SETUP ----
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
 });
 
 client.commands = new Collection();
@@ -561,5 +562,20 @@ client.on('messageCreate', message => {
   DiscordUser.updateOne({
     _id: message.author.id,
   }, {$inc: {messageCount: 1}}).catch(console.error);
+
+  const date = new Date();
+  date.setUTCHours(0, 0, 0, 0);
+
+  MessageActivity.updateOne(
+    { userId: message.author.id, date, channelId: message.channelId },
+    {
+      $inc: { count: 1, charSum: message.content.length },
+      $set: {
+        lastMessageAt: new Date(),
+        channelName: message.channel.name,
+      },
+    },
+    { upsert: true }
+  ).catch(console.error);
 })
 
