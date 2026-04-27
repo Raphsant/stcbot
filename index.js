@@ -25,6 +25,8 @@ import * as zoomRegisterBtn from './buttons/zoomRegister.js';
 import * as openEnrollModalBtn from './buttons/openEnrollModal.js';
 import {DiscordUser} from "./models/DiscordUser.js";
 import {MessageActivity} from "./models/MessageActivity.js";
+import {DashBoardLog} from "./models/DashboardLog.js";
+import {runRefresh} from "./commands/refresh.js";
 
 const app = express();
 
@@ -93,6 +95,10 @@ app.post('/webhooks/cf-membership-cancelled', async (req, res) => {
     if (isThereAnActiveOrder) return res.sendStatus(200);
 
     await kick(userData?.custom_attributes.discord_id, "Membresia cancelada");
+    await DashBoardLog.create({
+      userId: userData.custom_attributes.discord_id,
+      logType: 'clickfunnels',
+    });
     console.log(`El usuario ${fullName} (${email}) ha sido eliminado del servidor`);
     res.sendStatus(200);
   } catch (err) {
@@ -459,6 +465,21 @@ async function safeJson(response, errorMessage) {
 cron.schedule('59 23 * * *', async () => {
   console.log(`[${getESTTime()}] - Running Daily Zoom Joins Summary...`);
   await sendDailySummary();
+}, {
+  scheduled: true,
+  timezone: "America/Chicago"
+});
+
+// Cron job to auto-refresh the Zoom itinerary every day at midnight (Central Time)
+cron.schedule('0 0 * * *', async () => {
+  console.log(`[${getESTTime()}] - Running scheduled refresh...`);
+  try {
+    await clientReady;
+    await runRefresh(client, getMeetingDetails);
+    console.log(`[${getESTTime()}] - Scheduled refresh completed.`);
+  } catch (e) {
+    console.error(`[${getESTTime()}] - Scheduled refresh failed:`, e.message);
+  }
 }, {
   scheduled: true,
   timezone: "America/Chicago"
