@@ -338,7 +338,11 @@ async function getMeetingDetails(meetingId) {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Reunión no encontrada o error en ${key}: ${errorText.substring(0, 50)}`);
+        let zoomCode = null;
+        try { zoomCode = JSON.parse(errorText)?.code ?? null; } catch {}
+        const err = new Error(`Reunión no encontrada o error en ${key}: ${errorText.substring(0, 50)}`);
+        err.zoomCode = zoomCode;
+        throw err;
       }
 
       const data = JSON.parse(await response.text());

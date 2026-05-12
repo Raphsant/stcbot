@@ -39,9 +39,12 @@ export async function runRefresh(client, getMeetingDetails) {
 
       await targetMessage.edit({embeds: [embed], components: [new ActionRowBuilder().addComponents(button)], files: [logo]});
     } catch (err) {
-      // 10008 = Unknown Message, 10003 = Unknown Channel — entry is stale, drop it
-      if (err?.code === 10008 || err?.code === 10003) {
-        console.warn(`Removing stale messageMap entry (code ${err.code}): channel=${message.channelId} message=${message.messageId}`);
+      // Discord: 10008 = Unknown Message, 10003 = Unknown Channel
+      // Zoom:    3001  = Meeting does not exist
+      // In all cases the entry is stale, drop it and move on.
+      if (err?.code === 10008 || err?.code === 10003 || err?.zoomCode === 3001) {
+        const reason = err?.zoomCode === 3001 ? `zoom 3001` : `discord ${err.code}`;
+        console.warn(`Removing stale messageMap entry (${reason}): channel=${message.channelId} message=${message.messageId} meeting=${message.meetingId}`);
         await removeMessageMapEntry(message.messageId, message.meetingId, message.channelId);
         continue;
       }
