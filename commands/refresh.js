@@ -3,7 +3,7 @@ import {
   EmbedBuilder, ButtonStyle, AttachmentBuilder
 } from 'discord.js';
 
-import {getMessageMap} from "../redis-client.js";
+import {getMessageMap, removeMessageMapEntry} from "../redis-client.js";
 
 
 export const data = new SlashCommandBuilder()
@@ -15,28 +15,38 @@ export async function runRefresh(client, getMeetingDetails) {
   const messageMap = await getMessageMap();
 
   for (const message of messageMap) {
-    const channel = await guild.channels.fetch(message.channelId);
-    const targetMessage = await channel.messages.fetch(message.messageId);
-    const meeting = await getMeetingDetails(message.meetingId);
-    const timeString = `<t:${meeting.timestamp}:F>\n🕒 **Inicia:** <t:${meeting.timestamp}:R>`;
-    const logo = new AttachmentBuilder('./img/stclogo.jpeg');
-    const button = new ButtonBuilder()
-      .setCustomId(`zoomRegister:${meeting.id}:${meeting.timestamp}`)
-      .setLabel('Obtener Enlace de Acceso')
-      .setStyle(ButtonStyle.Success)
-      .setEmoji("📹");
+    try {
+      const channel = await guild.channels.fetch(message.channelId);
+      const targetMessage = await channel.messages.fetch(message.messageId);
+      const meeting = await getMeetingDetails(message.meetingId);
+      const timeString = `<t:${meeting.timestamp}:F>\n🕒 **Inicia:** <t:${meeting.timestamp}:R>`;
+      const logo = new AttachmentBuilder('./img/stclogo.jpeg');
+      const button = new ButtonBuilder()
+        .setCustomId(`zoomRegister:${meeting.id}:${meeting.timestamp}`)
+        .setLabel('Obtener Enlace de Acceso')
+        .setStyle(ButtonStyle.Success)
+        .setEmoji("📹");
 
-    const embed = new EmbedBuilder()
-      .setColor('#2D8CFF')
-      .setTitle(`📍 ${meeting.topic}`)
-      .addFields(
-        {name: '📅 Horario Local', value: timeString, inline: false},
-      )
-      .setDescription(`Esta sesión está programada en Zoom. Haz clic abajo para registrarte y obtener tu enlace único.`)
-      .setThumbnail('attachment://stclogo.jpeg')
-      .setFooter({text: 'Sincronizado automáticamente con Zoom API'});
+      const embed = new EmbedBuilder()
+        .setColor('#2D8CFF')
+        .setTitle(`📍 ${meeting.topic}`)
+        .addFields(
+          {name: '📅 Horario Local', value: timeString, inline: false},
+        )
+        .setDescription(`Esta sesión está programada en Zoom. Haz clic abajo para registrarte y obtener tu enlace único.`)
+        .setThumbnail('attachment://stclogo.jpeg')
+        .setFooter({text: 'Sincronizado automáticamente con Zoom API'});
 
-    await targetMessage.edit({embeds: [embed], components: [new ActionRowBuilder().addComponents(button)], files: [logo]});
+      await targetMessage.edit({embeds: [embed], components: [new ActionRowBuilder().addComponents(button)], files: [logo]});
+    } catch (err) {
+      // 10008 = Unknown Message, 10003 = Unknown Channel — entry is stale, drop it
+      if (err?.code === 10008 || err?.code === 10003) {
+        console.warn(`Removing stale messageMap entry (code ${err.code}): channel=${message.channelId} message=${message.messageId}`);
+        await removeMessageMapEntry(message.messageId, message.meetingId, message.channelId);
+        continue;
+      }
+      throw err;
+    }
   }
 }
 

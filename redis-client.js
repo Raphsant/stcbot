@@ -81,3 +81,13 @@ export async function getMessageMap(){
   const message_map = await client.lRange(redisKey,0,-1)
   return message_map.map(j => JSON.parse(j))
 }
+
+export async function removeMessageMapEntry(messageId, meetingId, channelId){
+  const mapEntry = JSON.stringify({
+    meetingId,
+    channelId,
+    messageId
+  })
+  const redisKey = "message_map_zoom_test1"
+  return await client.lRem(redisKey, 0, mapEntry)
+}
