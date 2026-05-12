@@ -133,6 +133,16 @@ app.post('/webhooks/discord-enroll', async (req, res) => {
   }
 });
 
+app.get('/message-map', async (req, res) => {
+  try {
+    const messageMap = await getMessageMap();
+    res.status(200).json(messageMap);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({error: e.message});
+  }
+});
+
 app.get('/webhooks/discord-info', async (req, res) => {
   try {
     const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID)
