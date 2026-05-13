@@ -26,6 +26,7 @@ import * as openEnrollModalBtn from './buttons/openEnrollModal.js';
 import {DiscordUser} from "./models/DiscordUser.js";
 import {MessageActivity} from "./models/MessageActivity.js";
 import {DashBoardLog} from "./models/DashboardLog.js";
+import {ZoomLog} from "./models/ZoomLog.js";
 import {runRefresh} from "./commands/refresh.js";
 
 const app = express();
@@ -567,24 +568,56 @@ app.listen(3001, () => console.log('Server running on port 3000'));
 
 async function sendLogToDb(meetingInfo, member, user) {
   try {
-    const body = {
-      meetingId: meetingInfo.meetingId,
-      startTime: meetingInfo.timestamp,
-      name: meetingInfo.name,
-      discordUser: {
-        id: user.id,
-        username: member.displayName,
-        roles: member.roles.cache.map(r => r.name),
+    const userId = user.id;
+    const username = member.displayName;
+    const roles = member.roles.cache.map(r => r.name);
+    const occurredAt = new Date(Number(meetingInfo.timestamp) * 1000);
+
+    let log = await ZoomLog.findOne({ meetingId: meetingInfo.meetingId, occurredAt });
+    if (!log) {
+      log = await ZoomLog.create({
+        meetingId: meetingInfo.meetingId,
+        name: meetingInfo.name,
+        occurredAt,
+        participants: [],
+      });
+    }
+
+    if (!log.participants.includes(userId)) {
+      log.participants.push(userId);
+      await log.save();
+    }
+
+    const existing = await DiscordUser.findById(userId);
+    if (!existing) {
+      await DiscordUser.create({
+        _id: userId,
+        username,
+        roles,
+        previousUsernames: [],
+      });
+    } else {
+      const updates = {};
+      if (existing.username !== username) {
+        updates.$push = { previousUsernames: existing.username };
+        updates.$set = { username };
+      }
+      if (roles) {
+        updates.$set = { ...updates.$set, roles };
+      }
+      if (Object.keys(updates).length > 0) {
+        await DiscordUser.findByIdAndUpdate(userId, updates);
       }
     }
 
-    const res = await fetch('https://stc-front.netlify.app/api/logs/meeting', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
+    await DashBoardLog.findOneAndUpdate(
+      { userId, zoomLogId: log._id, logType: ['zoom-register'] },
+      {
+        $inc: { count: 1 },
+        $setOnInsert: { occurredAt: new Date() },
       },
-      body: JSON.stringify(body)
-    })
+      { upsert: true }
+    );
   } catch (e) {
     console.error(e);
   }
