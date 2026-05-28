@@ -21,6 +21,17 @@ const discordUserSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  joinedAt: {
+    type: Date,
+  },
+  removedAt: {
+    type: Date,
+    default: null,
+  },
+  avatarUrl: {
+    type: String,
+    default: null,
+  },
 });
 
 export const DiscordUser = mongoose.model('DiscordUser', discordUserSchema);

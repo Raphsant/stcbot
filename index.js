@@ -647,3 +647,31 @@ client.on('messageCreate', message => {
   ).catch(console.error);
 })
 
+// Stamp removedAt when someone leaves or is kicked. Fire-and-forget — we don't
+// want a slow DB write to block gateway events.
+client.on('guildMemberRemove', member => {
+  DiscordUser.updateOne(
+    { _id: member.id },
+    { $set: { removedAt: new Date() } }
+  ).catch(console.error);
+});
+
+// When someone joins (or rejoins), upsert the full profile so brand-new members
+// land in the DB immediately with username, role names, avatar, and join date.
+client.on('guildMemberAdd', member => {
+  DiscordUser.updateOne(
+    { _id: member.id },
+    {
+      $set: {
+        username: member.user.username,
+        roles: member.roles.cache.map(r => r.name),
+        avatarUrl: member.displayAvatarURL({ size: 256, extension: 'png' }),
+        joinedAt: member.joinedAt ?? new Date(),
+        removedAt: null,
+      },
+      $setOnInsert: { previousUsernames: [] },
+    },
+    { upsert: true }
+  ).catch(console.error);
+});
+
