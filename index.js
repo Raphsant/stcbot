@@ -165,7 +165,7 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand()) {
     if (interaction.replied || interaction.deferred) return;
     const command = client.commands.get(interaction.commandName);
-    if (command) await command.execute(interaction, {getMeetingDetails}).catch(console.error);
+    if (command) await command.execute(interaction, {getMeetingDetails, getWeeklySessions}).catch(console.error);
   }
 
   // 2. Buttons (Handles Metadata for /crear-zoom)
@@ -377,6 +377,83 @@ async function getMeetingDetails(meetingId) {
   }
 
   throw lastError || new Error('No se encontró la reunión en ninguna cuenta');
+}
+
+// Lists every session in the next `days` days across BOTH Zoom accounts (STC + EDU).
+// Only meetings whose topic matches one of `keywords` are included, which filters out
+// personal / 1-1 meetings. Recurring meetings (type 8) are expanded into their
+// individual occurrences. Returns [{topic, meetingId, account, timestamp}] sorted by time.
+async function getWeeklySessions(keywords, days = 7) {
+  const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const wanted = keywords.map(normalize);
+  const matchesKeyword = (topic) => wanted.some(k => normalize(topic || '').includes(k));
+
+  const now = new Date();
+  const windowEnd = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+  const inWindow = (d) => d > now && d <= windowEnd;
+
+  const tokens = await getAllZoomTokens();
+  const sessions = [];
+  const seenMeetings = new Set();
+
+  for (const {key, token} of tokens) {
+    const headers = {'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json'};
+    try {
+      // Account-level (S2S) tokens can't use `me`, so list the account's users first.
+      const usersData = await safeJson(
+        await fetch('https://api.zoom.us/v2/users?page_size=300', {headers}),
+        `Zoom (${key}) users list failed`
+      );
+
+      for (const user of usersData.users ?? []) {
+        const list = await safeJson(
+          await fetch(`https://api.zoom.us/v2/users/${user.id}/meetings?type=upcoming&page_size=300`, {headers}),
+          `Zoom (${key}) meetings list failed`
+        );
+
+        for (const m of list.meetings ?? []) {
+          // type 1 = instantánea, 3 = recurrente sin hora fija, 4 = PMI — no van en el calendario
+          if (m.type !== 2 && m.type !== 8) continue;
+          if (!matchesKeyword(m.topic)) continue;
+          if (seenMeetings.has(m.id)) continue;
+          seenMeetings.add(m.id);
+
+          if (m.type === 8) {
+            // Recurrente con hora fija: expandir todas las ocurrencias de la semana
+            const details = await safeJson(
+              await fetch(`https://api.zoom.us/v2/meetings/${m.id}`, {headers}),
+              `Zoom (${key}) meeting ${m.id} failed`
+            );
+            for (const occ of details.occurrences ?? []) {
+              const start = new Date(occ.start_time);
+              if (inWindow(start)) {
+                sessions.push({
+                  topic: m.topic,
+                  meetingId: m.id,
+                  account: key,
+                  timestamp: Math.floor(start.getTime() / 1000),
+                });
+              }
+            }
+          } else {
+            const start = new Date(m.start_time);
+            if (inWindow(start)) {
+              sessions.push({
+                topic: m.topic,
+                meetingId: m.id,
+                account: key,
+                timestamp: Math.floor(start.getTime() / 1000),
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn(`No se pudieron listar las reuniones de ${key}: ${e.message}`);
+    }
+  }
+
+  return sessions.sort((a, b) => a.timestamp - b.timestamp);
 }
 
 // ---- CLICKFUNNELS FUNCTIONS ----
