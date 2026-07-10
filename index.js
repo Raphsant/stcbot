@@ -28,6 +28,7 @@ import {MessageActivity} from "./models/MessageActivity.js";
 import {DashBoardLog} from "./models/DashboardLog.js";
 import {ZoomLog} from "./models/ZoomLog.js";
 import {runRefresh} from "./commands/refresh.js";
+import {buildCalendarMessage} from "./commands/calendario.js";
 
 const app = express();
 
@@ -557,6 +558,27 @@ async function safeJson(response, errorMessage) {
 cron.schedule('59 23 * * *', async () => {
   console.log(`[${getESTTime()}] - Running Daily Zoom Joins Summary...`);
   await sendDailySummary();
+}, {
+  scheduled: true,
+  timezone: "America/Chicago"
+});
+
+// Cron job to post the weekly Zoom session calendar every Sunday at 23:00 (Central Time)
+cron.schedule('0 23 * * 0', async () => {
+  console.log(`[${getESTTime()}] - Running weekly calendar post...`);
+  try {
+    await clientReady;
+    const payload = await buildCalendarMessage(getWeeklySessions);
+    if (!payload) {
+      console.log('No hay sesiones para el calendario semanal, no se envía nada.');
+      return;
+    }
+    const channel = await client.channels.fetch('1124064907835490535');
+    await channel.send(payload);
+    console.log(`[${getESTTime()}] - Weekly calendar posted.`);
+  } catch (e) {
+    console.error(`[${getESTTime()}] - Weekly calendar post failed:`, e.message);
+  }
 }, {
   scheduled: true,
   timezone: "America/Chicago"
