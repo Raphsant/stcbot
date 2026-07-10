@@ -2,7 +2,7 @@ import {SlashCommandBuilder, EmbedBuilder, AttachmentBuilder} from 'discord.js';
 
 // Solo las sesiones del grupo van en el calendario — nada de reuniones personales o 1-1.
 // La comparación ignora mayúsculas y acentos ("Sesión de Progreso" ~ "sesion de progreso").
-const KEYWORDS = ['live trading', 'zombie hour', 'q&a', 'sesion de progreso', 'analisis de premarket'];
+const KEYWORDS = ['zombie hour', 'q&a', 'sesion de progreso', 'analisis de premarket'];
 
 export const data = new SlashCommandBuilder()
   .setName('calendario')
@@ -42,9 +42,9 @@ export async function execute(interaction, {getWeeklySessions}) {
 
     let description = '🕒 Los horarios se muestran automáticamente en **tu zona horaria local**.\n';
     for (const [header, daySessions] of days) {
-      description += `\n**📆 ${header}**\n`;
+      description += `\n**📆 ${header}**\n\n`;
       for (const s of daySessions) {
-        description += `📹 **${s.topic}**\n⏰ <t:${s.timestamp}:F> · <t:${s.timestamp}:R>\n`;
+        description += `📹 **${s.topic}**\n⏰ <t:${s.timestamp}:F> · <t:${s.timestamp}:R>\n\n`;
       }
     }
 
