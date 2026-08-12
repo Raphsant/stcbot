@@ -15,3 +15,8 @@ node_modules
 
 #!.yarn/cache
 .pnp.*
+
+# Secrets — this file holds the bot token, Mongo URI and BOT_API_KEY
+.env
+
+.DS_Store
