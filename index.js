@@ -75,6 +75,16 @@ const clientReady = new Promise((resolve) => {
 
 // ---- EXPRESS ROUTES ----
 
+// Shared-secret gate for the internal API consumed by the stc-video site.
+// Only applied to /api/* routes — the ClickFunnels webhooks above predate it.
+function requireApiKey(req, res, next) {
+  const provided = req.get('x-api-key');
+  if (!process.env.BOT_API_KEY || provided !== process.env.BOT_API_KEY) {
+    return res.sendStatus(401);
+  }
+  next();
+}
+
 app.get('/health', (req, res) => {
   const discordStatus = client.isReady() ? 'Connected' : 'Disconnected';
   const uptime = process.uptime();
@@ -156,6 +166,43 @@ app.get('/webhooks/discord-info', async (req, res) => {
   } catch (e) {
     console.error(e);
     res.status(500).json({error: e.message});
+  }
+})
+
+// Live guild roles for one member. The stc-video site calls this at login and
+// once a day per active session, so its access tiers follow Discord instead of
+// whatever DiscordUser.roles happened to hold. Returns ids alongside names:
+// names drive the tier matching, the id is what the admin check compares.
+// 404 means "not in the guild" — the site ends that user's session.
+app.get('/api/members/:discordId/roles', requireApiKey, async (req, res) => {
+  try {
+    const {discordId} = req.params;
+    if (!/^\d{15,21}$/.test(discordId)) {
+      return res.status(400).json({error: 'invalid_id'});
+    }
+
+    await clientReady;
+    const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID);
+
+    let member;
+    try {
+      member = await guild.members.fetch(discordId);
+    } catch (err) {
+      // 10007 Unknown Member, 10013 Unknown User
+      if (err?.code === 10007 || err?.code === 10013) {
+        return res.status(404).json({error: 'not_in_guild'});
+      }
+      throw err;
+    }
+
+    // Unfiltered (@everyone included) to match how guildMemberAdd and
+    // sendLogToDb write DiscordUser.roles — the site mirrors this response
+    // back into that same field, and differing shapes would churn it.
+    const roles = member.roles.cache.map(r => ({id: r.id, name: r.name}));
+    res.status(200).json({id: member.id, username: member.user.username, roles});
+  } catch (e) {
+    console.error('Error en /api/members/:discordId/roles:', e.message);
+    res.status(500).json({error: 'internal'});
   }
 })
 
@@ -752,6 +799,18 @@ client.on('guildMemberRemove', member => {
   DiscordUser.updateOne(
     { _id: member.id },
     { $set: { removedAt: new Date() } }
+  ).catch(console.error);
+});
+
+// Role changes made after join never reached the DB before this, so a member
+// promoted to Alpha kept the old roles until they next triggered a write. The
+// stc-video site reads DiscordUser.roles at login, so keep it current here.
+client.on('guildMemberUpdate', (oldMember, newMember) => {
+  if (oldMember.roles.cache.equals(newMember.roles.cache)) return;
+
+  DiscordUser.updateOne(
+    { _id: newMember.id },
+    { $set: { roles: newMember.roles.cache.map(r => r.name) } }
   ).catch(console.error);
 });
 
