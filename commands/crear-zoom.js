@@ -4,6 +4,7 @@ import {
 } from 'discord.js';
 
 import {client as redis, getCachedZoomToken, getDailyJoins, saveMessageMap, getMessageMap} from "../redis-client.js";
+import {isStaff} from "../permissions.js";
 
 export const data = new SlashCommandBuilder()
   .setName('crear-zoom')
@@ -12,7 +13,7 @@ export const data = new SlashCommandBuilder()
     option.setName('id_reunion').setDescription('ID de la reunión').setRequired(true));
 
 export async function execute(interaction, helpers) {
-  if (!interaction.member.roles.cache.has(process.env.ADMIN_ROLE_ID)) {
+  if (!isStaff(interaction.member)) {
     return interaction.reply({content: 'No tienes permisos.', ephemeral: true});
   }
 

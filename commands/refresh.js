@@ -4,6 +4,7 @@ import {
 } from 'discord.js';
 
 import {getMessageMap, removeMessageMapEntry} from "../redis-client.js";
+import {isStaff} from "../permissions.js";
 
 
 export const data = new SlashCommandBuilder()
@@ -54,7 +55,7 @@ export async function runRefresh(client, getMeetingDetails) {
 }
 
 export async function execute(interaction, {getMeetingDetails}){
-  if (!interaction.member.roles.cache.has(process.env.ADMIN_ROLE_ID)) {
+  if (!isStaff(interaction.member)) {
     return interaction.reply({ content: 'No tienes permisos.', ephemeral: true });
   }
   await interaction.deferReply({ ephemeral: true });

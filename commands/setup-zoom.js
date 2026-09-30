@@ -1,11 +1,12 @@
 import {SlashCommandBuilder, ButtonBuilder, ActionRowBuilder, EmbedBuilder, ButtonStyle, AttachmentBuilder} from 'discord.js';
+import {isStaff} from "../permissions.js";
 
 export const data = new SlashCommandBuilder()
   .setName('setup-zoom')
-  .setDescription('ADMIN ONLY: Posts the Zoom registration button');
+  .setDescription('Posts the Zoom registration button');
 
 export async function execute(interaction, helpers) {
-  if (!interaction.member.roles.cache.has(process.env.ADMIN_ROLE_ID)) {
+  if (!isStaff(interaction.member)) {
     return interaction.reply({content: 'No tienes permisos para usar este comando', ephemeral: true});
   }
   try {

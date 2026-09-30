@@ -1,4 +1,5 @@
 import {SlashCommandBuilder, EmbedBuilder, AttachmentBuilder} from 'discord.js';
+import {isStaff} from "../permissions.js";
 
 // Solo las sesiones del grupo van en el calendario — nada de reuniones personales o 1-1.
 // La comparación ignora mayúsculas y acentos ("Sesión de Progreso" ~ "sesion de progreso").
@@ -6,7 +7,7 @@ const KEYWORDS = ['zombie hour', 'q&a', 'sesion de progreso', 'analisis de prema
 
 export const data = new SlashCommandBuilder()
   .setName('calendario')
-  .setDescription('ADMIN ONLY: Publica el calendario semanal de sesiones de Zoom.');
+  .setDescription('Publica el calendario semanal de sesiones de Zoom.');
 
 // Encabezado del día en horario Houston (solo para agrupar; cada sesión lleva su timestamp local)
 function dayHeader(timestamp) {
@@ -59,7 +60,7 @@ export async function buildCalendarMessage(getWeeklySessions) {
 }
 
 export async function execute(interaction, {getWeeklySessions}) {
-  if (!interaction.member.roles.cache.has(process.env.ADMIN_ROLE_ID)) {
+  if (!isStaff(interaction.member)) {
     return interaction.reply({content: 'No tienes permisos para usar este comando', ephemeral: true});
   }
   await interaction.deferReply();
