@@ -12,6 +12,7 @@
     "redis": "^5.11.0"
   },
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "node --test"
   }
 }

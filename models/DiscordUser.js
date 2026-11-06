@@ -37,6 +37,16 @@ const discordUserSchema = new mongoose.Schema({
     default: null,
     index: true,
   },
+  // ClickFunnels address, synced nightly by cf-location.js. *Key fields are
+  // normalized for grouping; the others are display names.
+  cfLocation: {
+    country: { type: String, default: null },
+    region: { type: String, default: null },
+    regionKey: { type: String, default: null },
+    city: { type: String, default: null },
+    cityKey: { type: String, default: null },
+    syncedAt: { type: Date, default: null },
+  },
 });
 
 export const DiscordUser = mongoose.model('DiscordUser', discordUserSchema);
