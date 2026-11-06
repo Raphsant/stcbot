@@ -584,6 +584,9 @@ async function updateUserAttributes(id, discord_id) {
     headers: {'Authorization': `Bearer ${process.env.CF2_TOKEN}`, 'content-type': 'application/json'},
     body: JSON.stringify({contact: {custom_attributes: {discord_id: discord_id}}})
   });
+  // Mirror the link on our side so stc-front can fetch CF data by contact id.
+  // Logged, not thrown: a failed mirror must not block the role grant after it.
+  await DiscordUser.updateOne({_id: discord_id}, {$set: {cfContactId: id}}).catch(console.error);
 }
 
 async function checkIfUserIsRegistered(email) {

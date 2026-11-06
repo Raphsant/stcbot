@@ -32,6 +32,11 @@ const discordUserSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  cfContactId: {
+    type: Number,
+    default: null,
+    index: true,
+  },
 });
 
 export const DiscordUser = mongoose.model('DiscordUser', discordUserSchema);
