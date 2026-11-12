@@ -100,8 +100,10 @@ export function toLocation(orders) {
 // ---- ClickFunnels I/O ----
 
 // CF's gateway throws the odd 502/429, so retry with backoff.
-async function fetchOrders(contactId) {
-  const url = `${CF_BASE}/workspaces/${process.env.WORKSPACE_ID}/orders?filter[contact_id]=${contactId}`;
+// Newest first, 100 per page: the default is 20 oldest-first, which hides the
+// current order of anyone with a long history.
+export async function fetchOrders(contactId) {
+  const url = `${CF_BASE}/workspaces/${process.env.WORKSPACE_ID}/orders?filter[contact_id]=${contactId}&per_page=100&sort_order=desc`;
   const headers = { Authorization: `Bearer ${process.env.CF2_TOKEN}`, accept: 'application/json' };
   for (let attempt = 1; ; attempt++) {
     const res = await fetch(url, { headers }).catch(e => ({ ok: false, status: e.message }));

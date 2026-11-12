@@ -29,7 +29,7 @@ import {DashBoardLog} from "./models/DashboardLog.js";
 import {ZoomLog} from "./models/ZoomLog.js";
 import {runRefresh} from "./commands/refresh.js";
 import {buildCalendarMessage} from "./commands/calendario.js";
-import {syncCfLocation, syncAllCfLocations} from "./cf-location.js";
+import {syncCfUser, syncAllCf} from "./cf-membership.js";
 
 const app = express();
 
@@ -588,8 +588,8 @@ async function updateUserAttributes(id, discord_id) {
   // Mirror the link on our side so stc-front can fetch CF data by contact id.
   // Logged, not thrown: a failed mirror must not block the role grant after it.
   await DiscordUser.updateOne({_id: discord_id}, {$set: {cfContactId: id}}).catch(console.error);
-  // Not awaited: the location is nice-to-have and must not delay the role grant.
-  syncCfLocation(discord_id, id).catch(console.error);
+  // Not awaited: location and subscription are nice-to-have and must not delay the role grant.
+  syncCfUser(discord_id, id).catch(console.error);
 }
 
 async function checkIfUserIsRegistered(email) {
@@ -698,14 +698,15 @@ cron.schedule('0 0 * * *', async () => {
   timezone: "America/Chicago"
 });
 
-// Cron job to mirror ClickFunnels addresses onto DiscordUser.cfLocation every day at 03:30 (Central Time)
+// Cron job to mirror ClickFunnels addresses (cfLocation) and subscriptions
+// (cfMembership) onto DiscordUser every day at 03:30 (Central Time)
 cron.schedule('30 3 * * *', async () => {
-  console.log(`[${getESTTime()}] - Running CF location sync...`);
+  console.log(`[${getESTTime()}] - Running CF sync...`);
   try {
-    const stats = await syncAllCfLocations();
-    console.log(`[${getESTTime()}] - CF location sync completed:`, stats);
+    const stats = await syncAllCf();
+    console.log(`[${getESTTime()}] - CF sync completed:`, stats);
   } catch (e) {
-    console.error(`[${getESTTime()}] - CF location sync failed:`, e.message);
+    console.error(`[${getESTTime()}] - CF sync failed:`, e.message);
   }
 }, {
   scheduled: true,
