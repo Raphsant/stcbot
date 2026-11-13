@@ -47,6 +47,20 @@ const discordUserSchema = new mongoose.Schema({
     cityKey: { type: String, default: null },
     syncedAt: { type: Date, default: null },
   },
+  // ClickFunnels subscription, synced nightly by cf-membership.js. expiresAt
+  // is the paid-through date; expirySource records which ClickFunnels field
+  // it came from. Mirrored in stc-front (server/models/DiscordUser.schema.ts).
+  cfMembership: {
+    status: { type: String, default: null },
+    orderId: { type: Number, default: null },
+    productName: { type: String, default: null },
+    interval: { type: String, default: null },
+    expiresAt: { type: Date, default: null },
+    expirySource: { type: String, default: null },
+    nextChargeAt: { type: Date, default: null },
+    canceledAt: { type: Date, default: null },
+    syncedAt: { type: Date, default: null },
+  },
 });
 
 export const DiscordUser = mongoose.model('DiscordUser', discordUserSchema);
