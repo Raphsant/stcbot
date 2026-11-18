@@ -30,6 +30,7 @@ import {ZoomLog} from "./models/ZoomLog.js";
 import {runRefresh} from "./commands/refresh.js";
 import {buildCalendarMessage} from "./commands/calendario.js";
 import {syncCfUser, syncAllCf} from "./cf-membership.js";
+import {createMemberRoleHandlers} from "./member-roles.js";
 
 const app = express();
 
@@ -207,51 +208,27 @@ app.get('/api/members/:discordId/roles', requireApiKey, async (req, res) => {
   }
 })
 
-// Grant / revoke the "Alpha" role for the stc-payments dashboard. Matched by
-// exact name (or ALPHA_ROLE_ID) so the separate "Alpha." tier is never touched.
-// Writes DiscordUser.roles right away so the dashboard sees the change on its
-// next read instead of waiting on guildMemberUpdate.
-async function setAlphaRole(req, res, add) {
-  try {
-    const {discordId} = req.params;
-    if (!/^\d{15,21}$/.test(discordId)) {
-      return res.status(400).json({error: 'invalid_id'});
-    }
-
+// Role changes and server joins for the sibling apps (handlers in member-roles.js):
+//   - stc-payments grants / revokes "Alpha" through the two /alpha routes.
+//   - stc-billing grants / revokes any role listed in MANAGED_ROLE_IDS, and adds
+//     a buyer to the server with the OAuth token from their login.
+// Each role change writes DiscordUser.roles right away, so the dashboards see it
+// on their next read instead of waiting on guildMemberUpdate.
+const memberRoles = createMemberRoleHandlers({
+  getGuild: async () => {
     await clientReady;
-    const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID);
-    const roles = await guild.roles.fetch();
-    const alpha = process.env.ALPHA_ROLE_ID
-      ? roles.get(process.env.ALPHA_ROLE_ID)
-      : roles.find(r => r.name === 'Alpha');
-    if (!alpha) return res.status(500).json({error: 'alpha_role_not_found'});
+    return client.guilds.fetch(process.env.DISCORD_GUILD_ID);
+  },
+  saveRoles: (discordId, roleNames) => DiscordUser.updateOne({_id: discordId}, {$set: {roles: roleNames}}),
+});
 
-    let member;
-    try {
-      member = await guild.members.fetch(discordId);
-    } catch (err) {
-      if (err?.code === 10007 || err?.code === 10013) {
-        return res.status(404).json({error: 'not_in_guild'});
-      }
-      throw err;
-    }
+app.post('/api/members/:discordId/alpha', requireApiKey, memberRoles.setAlphaRole(true));
+app.delete('/api/members/:discordId/alpha', requireApiKey, memberRoles.setAlphaRole(false));
 
-    const reason = typeof req.body?.reason === 'string' ? req.body.reason.slice(0, 400) : undefined;
-    const updated = add
-      ? await member.roles.add(alpha, reason)
-      : await member.roles.remove(alpha, reason);
+app.put('/api/members/:discordId/roles/:roleId', requireApiKey, memberRoles.setManagedRole(true));
+app.delete('/api/members/:discordId/roles/:roleId', requireApiKey, memberRoles.setManagedRole(false));
 
-    const roleNames = updated.roles.cache.map(r => r.name);
-    await DiscordUser.updateOne({_id: discordId}, {$set: {roles: roleNames}});
-    res.status(200).json({id: discordId, roles: roleNames});
-  } catch (e) {
-    console.error(`Error en /api/members/:discordId/alpha (${add ? 'add' : 'remove'}):`, e.message);
-    res.status(500).json({error: 'internal'});
-  }
-}
-
-app.post('/api/members/:discordId/alpha', requireApiKey, (req, res) => setAlphaRole(req, res, true));
-app.delete('/api/members/:discordId/alpha', requireApiKey, (req, res) => setAlphaRole(req, res, false));
+app.put('/api/members/:discordId', requireApiKey, memberRoles.joinGuild);
 
 // ---- DISCORD INTERACTION HANDLER ----
 
